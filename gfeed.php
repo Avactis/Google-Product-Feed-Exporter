@@ -1,10 +1,21 @@
 <?php
+/* Google Product Feed generator for Avactis Shopping Cart
+ *
+ * Works directly with database, and uses a single query for maximum performance.
+ *
+ * Usage:
+ * - Upload to the root directory of online store
+ * - In Google Merchant Center, schedule regular fetching from this script
+ * - ???
+ * - PROFIT!
+ */
 
 $settings = parse_ini_file('avactis-system/config.php');
 
 $c = mysql_connect( $settings['DB_SERVER'],	$settings['DB_USER'], $settings['DB_PASSWORD'] ) or die('Cannot connect to database :(');
 mysql_select_db( $settings['DB_NAME'] ) or die('Cannot select the needed database :(');
 
+/* Correctly prefix the names of all tables to be used */
 $store_settings = $settings['DB_TABLE_PREFIX'].'store_settings';
 $product_attributes = $settings['DB_TABLE_PREFIX'].'product_attributes';
 $products = $settings['DB_TABLE_PREFIX'].'products';
@@ -30,6 +41,12 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
         <title>$store_title</title>
         <link>$store_link</link>
         <description>$store_title product catalog</description>";
+
+/* The main query that prepares a big table with all products and their attributes
+ *
+ * If a product belongs to multiple categories, the product appears as multiple lines in the table
+ * (all attributes are equal except for the category name which is different in each row)
+ */
 
 $query = "SELECT
 
@@ -60,10 +77,10 @@ a7.product_attr_value = 3
 
 ORDER BY 1";
 
-$list = mysql_query( $query ) or die('Cannot execute the big query: '.mysql_error());
+$product_list = mysql_query( $query ) or die('Cannot execute the big query: '.mysql_error());
 $previous_pid = 0;
 
-while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_prefix, $brand, $category ) = mysql_fetch_row( $list ) )
+while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_prefix, $brand, $category ) = mysql_fetch_row( $product_list ) )
 {
     if( $pid != $previous_pid )
     {
@@ -72,7 +89,7 @@ while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_pr
         /* Closing the previous product, if any */
         if( $previous_pid > 0 ) echo "        </item>\n";
         
-        /* Starting the new one */
+        /* Starting the new product */
         
         if( !empty( $seo_prefix ) ) $seo_prefix .= '-';
         
@@ -82,8 +99,10 @@ while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_pr
         /* Newer versions of Avactis save just the filename to database */
         if( parse_url( $image_link, PHP_URL_HOST ) === NULL )
             $image_link = $settings['HTTP_URL'].'avactis-images/'.$image_link;
-        
+
+        /* Product page URL in its default form; TODO: Use actual SEO URL settings */
         $link = $settings['HTTP_URL']."product-info.php?{$seo_prefix}pid$pid.html";
+        
         $title = htmlentities( trim( $title ) );
         $image_link = htmlentities( $image_link );
         $description = htmlentities( trim( $description ) );
