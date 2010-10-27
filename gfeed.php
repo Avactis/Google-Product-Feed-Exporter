@@ -26,10 +26,10 @@ $store_link = getSetting( 'store_owner_website' );
 
 echo '<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
-	<channel>'."
-		<title>$store_title</title>
-		<link>$store_link</link>
-		<description>$store_title product catalog</description>";
+    <channel>'."
+        <title>$store_title</title>
+        <link>$store_link</link>
+        <description>$store_title product catalog</description>";
 
 $query = "SELECT
 
@@ -58,39 +58,60 @@ LEFT JOIN $categories_descr AS cd ON p2c.category_id = cd.category_id
 WHERE
 a7.product_attr_value = 3
 
-ORDER BY 1";
+ORDER BY 1 LIMIT 3";
 
 $list = mysql_query( $query ) or die('Cannot execute the big query: '.mysql_error());
+$previous_pid = 0;
 
-while( list( $id, $title, $price, $image_link, $quantity, $description, $seo_prefix, $brand, $category ) = mysql_fetch_row( $list ) )
-{	
-	if( !empty( $seo_prefix ) ) $seo_prefix .= '-';
-	if( $quantity < 0 ) $quantity = 0;
-    if( parse_url( $image_link, PHP_URL_HOST ) === NULL ) $image_link = $settings['HTTP_URL'].'avactis-images/'.$image_link;
-	
-	$link = $settings['HTTP_URL']."product-info.php?{$seo_prefix}pid$id.html";
-	$title = htmlentities( trim( $title ) );
-	$image_link = htmlentities( $image_link );
-	$description = htmlentities( trim( $description ) );
-	$brand = htmlentities( trim( $brand ) );
-	$category = htmlentities( trim( $category ) );
-	
-	echo "
-		<item>
-			<g:id>$id</g:id>
-			<title>$title</title>	
-			<link>$link</link>
-			<g:price>$price</g:price>
-			<g:condition>new</g:condition>
-			<description>$description</description>
-			<g:brand>$brand</g:brand>
-			<g:image_link>$image_link</g:image_link>
-			<g:quantity>$quantity</g:quantity>
-			<g:product_type>$category</g:product_type>
-		</item>";
+while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_prefix, $brand, $category ) = mysql_fetch_row( $list ) )
+{
+    if( $pid != $previous_pid )
+    {
+        /* Another product */
+        
+        /* Closing the previous product, if any */
+        if( $previous_pid > 0 ) echo "        </item>\n";
+        
+        /* Starting the new one */
+        
+        if( !empty( $seo_prefix ) ) $seo_prefix .= '-';
+        
+        /* Google does not accept negative balance */
+        if( $quantity < 0 ) $quantity = 0;
+        
+        /* Newer versions of Avactis save just the filename to database */
+        if( parse_url( $image_link, PHP_URL_HOST ) === NULL )
+            $image_link = $settings['HTTP_URL'].'avactis-images/'.$image_link;
+        
+        $link = $settings['HTTP_URL']."product-info.php?{$seo_prefix}pid$pid.html";
+        $title = htmlentities( trim( $title ) );
+        $image_link = htmlentities( $image_link );
+        $description = htmlentities( trim( $description ) );
+        $brand = htmlentities( trim( $brand ) );
+        $category = htmlentities( trim( $category ) );
+        
+        echo "
+        <item>
+            <g:id>$pid</g:id>
+            <title>$title</title>	
+            <link>$link</link>
+            <g:price>$price</g:price>
+            <g:condition>new</g:condition>
+            <description>$description</description>
+            <g:brand>$brand</g:brand>
+            <g:image_link>$image_link</g:image_link>
+            <g:quantity>$quantity</g:quantity>
+            <g:product_type>$category</g:product_type>
+";
+        $previous_pid = $pid;
+    }
+    else
+    {
+        /* Same product in another category */
+        echo "            <g:product_type>$category</g:product_type>\n";
+    }
 }
 
-echo '
-	</channel>
+echo '        </item>
+    </channel>
 </rss>';
-?>
