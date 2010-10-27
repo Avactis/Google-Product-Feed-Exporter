@@ -58,7 +58,7 @@ LEFT JOIN $categories_descr AS cd ON p2c.category_id = cd.category_id
 WHERE
 a7.product_attr_value = 3
 
-ORDER BY 1 LIMIT 3";
+ORDER BY 1";
 
 $list = mysql_query( $query ) or die('Cannot execute the big query: '.mysql_error());
 $previous_pid = 0;
