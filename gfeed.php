@@ -1,5 +1,5 @@
 <?php
-/* Google Product Feed generator for Avactis Shopping Cart
+/* Google Product Feed generator
  *
  * Works directly with database, and uses a single query for maximum performance.
  *
@@ -11,6 +11,16 @@
  */
 
 $settings = parse_ini_file('avactis-system/config.php');
+
+/* White Label edition has a different directory name */
+if( $settings === false )
+{
+    $settings = parse_ini_file('system/config.php');
+    $white_label_edition = true;
+}
+
+if( $settings === false )
+    die( 'Settings not found :(' );
 
 $c = mysql_connect( $settings['DB_SERVER'],	$settings['DB_USER'], $settings['DB_PASSWORD'] ) or die('Cannot connect to database :(');
 mysql_select_db( $settings['DB_NAME'] ) or die('Cannot select the needed database :(');
@@ -79,6 +89,7 @@ ORDER BY 1";
 
 $product_list = mysql_query( $query ) or die('Cannot execute the big query: '.mysql_error());
 $previous_pid = 0;
+$images_dirname = $white_label_edition ? 'images' : 'avactis-images';
 
 while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_prefix, $brand, $category ) = mysql_fetch_row( $product_list ) )
 {
@@ -98,7 +109,7 @@ while( list( $pid, $title, $price, $image_link, $quantity, $description, $seo_pr
         
         /* Newer versions of Avactis save just the filename to database */
         if( parse_url( $image_link, PHP_URL_HOST ) === NULL )
-            $image_link = $settings['HTTP_URL'].'avactis-images/'.$image_link;
+            $image_link = $settings['HTTP_URL'].$images_dirname.'/'.$image_link;
 
         /* Product page URL in its default form; TODO: Use actual SEO URL settings */
         $link = $settings['HTTP_URL']."product-info.php?{$seo_prefix}pid$pid.html";
